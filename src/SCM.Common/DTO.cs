@@ -44,7 +44,7 @@ public class ResourceDirectory: ResourceFull
     {
     }
 
-    public required IReadOnlyList<ResourceTitled> Children { get; init; }
+    public required IReadOnlyList<ResourceTitled> SubDirectories { get; init; }
     public required IReadOnlyList<ResourceTitled> Files    { get; init; }
 }
 

@@ -11,7 +11,7 @@ public class ModelBuilder
         this.compContentType = compContentType;
     }
 
-    public async Task<Model> Load(string path)
+    public async Task<PageContentModel> Load(string path)
     {
         var resolve = fs.Resolve(path);
         if (!resolve.IsValid) throw new Exception("invalid path");
@@ -23,28 +23,25 @@ public class ModelBuilder
         {
             var ct = fs.DescribeFile(path);
             var ext = Path.GetExtension(path);
-            var resFile = new ResourceFile
+            var resFile = new ResourceFile(path, null)
             {
-                FullPath = path,
-                Name = Path.GetFileName(path),
-                Title = Path.GetFileNameWithoutExtension(path),
-                ParentUri = Path.GetDirectoryName(path),
                 MimeType = compContentType.GetContentTypeFromExt(ext)
             };
-            var resDir = new ResourceDirectory
+            var resDir = new ResourceDirectory(resFile.GetParent() ?? "/", null)
             {
             };
-            
-            var model = new Model
+
+            var model = new PageContentModel
             {
                 Title = ct.Title ?? ct.Name,
                 Resource = resFile,
                 Directory = resDir,
                 File = resFile,
                 Parent = resDir,
-
+                Links = new List<ResourceModel>(),
+                TopLevel = new List<ResourceModel>(),
             };
-            return model
+            return model;
         }
         else if (resolve.IsDirectory)
         {
@@ -53,7 +50,6 @@ public class ModelBuilder
 
         throw new Exception("invaid path");
     }
-
 
     // public async Task<Model> Load(string uri)
     // {
