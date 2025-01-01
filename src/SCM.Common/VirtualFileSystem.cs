@@ -19,17 +19,15 @@ public interface IVirtualFileSystemReadOnly
     Task<IReadOnlyList<string>> GetDirectories(string path);
     Task<IReadOnlyList<string>> GetFiles(string path);
     Task<Stream> OpenRead(string file);
+ 
+    void AssertValid(string path)
+    {
+        if (!Check(path, out var error)) throw new InvalidDataException(error);
+    }
 }
 
 public static class VirtualFileSystemReadOnlyExt
 {
-    public static void AssertValid(this IVirtualFileSystemReadOnly fs, string path)
-    {
-        if (!fs.Check(path, out var error))
-        {
-            throw new InvalidDataException(error);
-        }
-    }
 }
 
 // here a path/resouce is mapped to TContentIdent{Title,MimeType, ... } for example
@@ -83,7 +81,7 @@ public class VirtualFileSystemReadOnly : IVirtualFileSystemReadOnly
         if (!abs.StartsWith(RootPath)) throw new InvalidDataException($"Must start with RootPath: {abs}");
 
         var rel = abs.Remove(0, RootPath.Length);
-        this.AssertValid(rel);
+        (this as IVirtualFileSystemReadOnly).AssertValid(rel);
 
         return rel;
     }
