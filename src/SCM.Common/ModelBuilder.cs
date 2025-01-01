@@ -2,6 +2,58 @@ namespace SCM.Common;
 
 public class ModelBuilder
 {
+    readonly IContentFileSystemReadOnly<ContentDescriptor> fs;
+    readonly IContentTypeComponent compContentType;
+
+    public ModelBuilder(IContentFileSystemReadOnly<ContentDescriptor> fs, IContentTypeComponent compContentType)
+    {
+        this.fs = fs;
+        this.compContentType = compContentType;
+    }
+
+    public async Task<Model> Load(string path)
+    {
+        var resolve = fs.Resolve(path);
+        if (!resolve.IsValid) throw new Exception("invalid path");
+        if (!resolve.Exists)
+        {
+            throw new Exception($"Path must exist: {path}");
+        }
+        if (resolve.IsFile)
+        {
+            var ct = fs.DescribeFile(path);
+            var ext = Path.GetExtension(path);
+            var resFile = new ResourceFile
+            {
+                FullPath = path,
+                Name = Path.GetFileName(path),
+                Title = Path.GetFileNameWithoutExtension(path),
+                ParentUri = Path.GetDirectoryName(path),
+                MimeType = compContentType.GetContentTypeFromExt(ext)
+            };
+            var resDir = new ResourceDirectory
+            {
+            };
+            
+            var model = new Model
+            {
+                Title = ct.Title ?? ct.Name,
+                Resource = resFile,
+                Directory = resDir,
+                File = resFile,
+                Parent = resDir,
+
+            };
+            return model
+        }
+        else if (resolve.IsDirectory)
+        {
+            throw new NotImplementedException();
+        }
+
+        throw new Exception("invaid path");
+    }
+
 
     // public async Task<Model> Load(string uri)
     // {

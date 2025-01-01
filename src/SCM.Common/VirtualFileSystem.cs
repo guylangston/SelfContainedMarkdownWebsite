@@ -11,19 +11,26 @@ namespace SCM.Common;
 // While I don't really want a full nuget package
 // So this is a one-file copy/paste implementation
 
+
+public struct ResolveResult
+{
+    public bool IsValid { get; set; }
+    public bool Exists { get; set; }
+    public bool IsFile { get; set; }
+    public bool IsDirectory { get; set; }
+}
+
 // See rustlings:FileSystemZ:IFileSystem
 public interface IVirtualFileSystemReadOnly
 {
     string? GetParent(string path);
+    ResolveResult Resolve(string path);
     bool Check(string path, [NotNullWhen(false)] out string? error);
+    void AssertValid(string path);
     Task<IReadOnlyList<string>> GetDirectories(string path);
     Task<IReadOnlyList<string>> GetFiles(string path);
     Task<Stream> OpenRead(string file);
  
-    void AssertValid(string path)
-    {
-        if (!Check(path, out var error)) throw new InvalidDataException(error);
-    }
 }
 
 public static class VirtualFileSystemReadOnlyExt
@@ -76,12 +83,30 @@ public class VirtualFileSystemReadOnly : IVirtualFileSystemReadOnly
 
     public string RootPath { get;  }
 
+    public ResolveResult Resolve(string path)
+    {
+        var abs = MakeAbs(path);
+        if (!Check(abs, out _))
+        {
+            return new ResolveResult { IsValid = false };
+        }
+        if (File.Exists(abs))
+        {
+            return new ResolveResult { IsValid = true, IsFile = true };
+        }
+        if (Directory.Exists(abs))
+        {
+            return new ResolveResult { IsValid = true, IsDirectory = true };
+        }
+        return new ResolveResult { IsValid = true, IsDirectory = path.EndsWith('/') };
+    }
+
     public string MakeRelative(string abs)
     {
         if (!abs.StartsWith(RootPath)) throw new InvalidDataException($"Must start with RootPath: {abs}");
 
         var rel = abs.Remove(0, RootPath.Length);
-        (this as IVirtualFileSystemReadOnly).AssertValid(rel);
+        AssertValid(rel);
 
         return rel;
     }
@@ -109,14 +134,21 @@ public class VirtualFileSystemReadOnly : IVirtualFileSystemReadOnly
         return true;
     }
 
+    public void AssertValid(string path)
+    {
+        if (!Check(path, out var error)) throw new InvalidDataException(error);
+    }
+
     public Task<IReadOnlyList<string>> GetDirectories(string path) => Task.Run<IReadOnlyList<string>>(
-                () => Directory.GetDirectories(MakeAbs(path)).Select(MakeRelative).ToArray());
+                () => Directory.GetDirectories(MakeAbs(path))
+                        .Select(x=>MakeRelative(x) + '/').ToArray());
 
     public Task<IReadOnlyList<string>> GetFiles(string path) => Task.Run<IReadOnlyList<string>>(
                 () => Directory.GetFiles(MakeAbs(path)).Select(MakeRelative).ToArray());
 
     public Task<Stream> OpenRead(string file) => Task.Run<Stream>(
                 () => File.OpenRead(MakeAbs(file)));
+
 }
 
 public class ContentFileSystemReadOnly : VirtualFileSystemReadOnly, IContentFileSystemReadOnly<ContentDescriptor>
